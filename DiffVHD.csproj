@@ -1,0 +1,129 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
+    <ProjectGuid>{7F64FD16-32C3-4DB7-B677-B2F07FFE3CC4}</ProjectGuid>
+    <OutputType>Library</OutputType>
+    <AppDesignerFolder>Properties</AppDesignerFolder>
+    <RootNamespace>DiffVHD</RootNamespace>
+    <AssemblyName>DiffVHD</AssemblyName>
+    <TargetFrameworkVersion>v4.0</TargetFrameworkVersion>
+    <FileAlignment>512</FileAlignment>
+    <SolutionDir Condition="$(SolutionDir) == '' Or $(SolutionDir) == '*Undefined*'">..\VMProvisioningAgent\</SolutionDir>
+    <RestorePackages>true</RestorePackages>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
+    <DebugSymbols>true</DebugSymbols>
+    <DebugType>full</DebugType>
+    <Optimize>false</Optimize>
+    <OutputPath>bin\Debug\</OutputPath>
+    <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+    <RunCodeAnalysis>false</RunCodeAnalysis>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+    <DebugType>pdbonly</DebugType>
+    <Optimize>true</Optimize>
+    <OutputPath>bin\Release\</OutputPath>
+    <DefineConstants>TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+    <DocumentationFile>bin\Release\DiffVHD.XML</DocumentationFile>
+    <DebugSymbols>true</DebugSymbols>
+    <RunCodeAnalysis>false</RunCodeAnalysis>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="ClrPlus">
+      <HintPath>..\VMProvisioningAgent\packages\ClrPlus.1.8.0.56\lib\net40\ClrPlus.dll</HintPath>
+    </Reference>
+    <Reference Include="DiscUtils">
+      <HintPath>..\VMProvisioningAgent\packages\Discutils.0.11.0.1\lib\net40\DiscUtils.dll</HintPath>
+    </Reference>
+    <Reference Include="DiscUtils.Common">
+      <HintPath>..\VMProvisioningAgent\packages\Discutils.0.11.0.1\lib\net40\DiscUtils.Common.dll</HintPath>
+    </Reference>
+    <Reference Include="System" />
+    <Reference Include="System.Core" />
+    <Reference Include="System.Management.Automation, Version=1.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\..\Program Files\Reference Assemblies\Microsoft\WindowsPowerShell\v1.0\System.Management.Automation.dll</HintPath>
+    </Reference>
+    <Reference Include="System.Xml.Linq" />
+    <Reference Include="System.Data.DataSetExtensions" />
+    <Reference Include="Microsoft.CSharp" />
+    <Reference Include="System.Data" />
+    <Reference Include="System.Xml" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="Cdmlets.cs" />
+    <Compile Include="DiffImport\Core\AbbreviatedObjectId.cs" />
+    <Compile Include="DiffImport\Core\AnyObjectId.cs" />
+    <Compile Include="DiffImport\Core\Constants.cs" />
+    <Compile Include="DiffImport\Core\Exceptions\CorruptObjectException.cs" />
+    <Compile Include="DiffImport\Core\Exceptions\InvalidObjectIdException.cs" />
+    <Compile Include="DiffImport\Core\FileMode.cs" />
+    <Compile Include="DiffImport\Core\MutableObjectId.cs" />
+    <Compile Include="DiffImport\Core\ObjectChecker.cs" />
+    <Compile Include="DiffImport\Core\ObjectId.cs" />
+    <Compile Include="DiffImport\Core\ObjectType.cs" />
+    <Compile Include="DiffImport\Core\Util\Hex.cs" />
+    <Compile Include="DiffImport\Core\Util\IListUtil.cs" />
+    <Compile Include="DiffImport\Core\Util\IO.cs" />
+    <Compile Include="DiffImport\Core\Util\ListIterator.cs" />
+    <Compile Include="DiffImport\Core\Util\LongList.cs" />
+    <Compile Include="DiffImport\Core\Util\MessageDigest.cs" />
+    <Compile Include="DiffImport\Core\Util\MutableInteger.cs" />
+    <Compile Include="DiffImport\Core\Util\NB.cs" />
+    <Compile Include="DiffImport\Core\Util\QuotedString.cs" />
+    <Compile Include="DiffImport\Core\Util\RawParseUtils.cs" />
+    <Compile Include="DiffImport\Core\Util\Stream.cs" />
+    <Compile Include="DiffImport\Core\Util\StringExtension.cs" />
+    <Compile Include="DiffImport\Core\Util\TemporaryBuffer.cs" />
+    <Compile Include="DiffImport\Text.cs" />
+    <Compile Include="DiffVHD.cs" />
+    <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="RegDiff.cs" />
+    <Compile Include="RegistryComparison.cs" />
+    <Compile Include="DiffImport\Diff.cs" />
+    <Compile Include="DiffImport\Core\Diff\DiffFormatter.cs" />
+    <Compile Include="DiffImport\Core\Diff\Edit.cs" />
+    <Compile Include="DiffImport\Core\Diff\EditList.cs" />
+    <Compile Include="DiffImport\Core\Diff\MyersDiff.cs" />
+    <Compile Include="DiffImport\Core\Diff\RawText.cs" />
+    <Compile Include="DiffImport\Core\Diff\Sequence.cs" />
+    <Compile Include="DiffImport\Core\Merge\MergeAlgorithm.cs" />
+    <Compile Include="DiffImport\Core\Merge\MergeChunk.cs" />
+    <Compile Include="DiffImport\Core\Merge\MergeFormatter.cs" />
+    <Compile Include="DiffImport\Core\Merge\MergeResult.cs" />
+    <Compile Include="DiffImport\Core\Patch\BinaryHunk.cs" />
+    <Compile Include="DiffImport\Core\Patch\CombinedFileHeader.cs" />
+    <Compile Include="DiffImport\Core\Patch\CombinedHunkHeader.cs" />
+    <Compile Include="DiffImport\Core\Patch\FileHeader.cs" />
+    <Compile Include="DiffImport\Core\Patch\FormatError.cs" />
+    <Compile Include="DiffImport\Core\Patch\HunkHeader.cs" />
+    <Compile Include="DiffImport\Core\Patch\Patch.cs" />
+    <Compile Include="DiffImport\Core\Util\IntList.cs" />
+    <Compile Include="DiffImport\Core\Util\JavaHelper\Charset.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="packages.config" />
+    <None Include="DiffVHD.psd1">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+  <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+  <Import Project="$(SolutionDir)\.nuget\nuget.targets" />
+  <PropertyGroup>
+    <PostBuildEvent>xcopy $(ProjectDir)$(OutDir)* \apps\Test\DiffVHD\ /y /q</PostBuildEvent>
+  </PropertyGroup>
+  <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
+       Other similar extension points exist, see Microsoft.Common.targets.
+  <Target Name="BeforeBuild">
+  </Target>
+  <Target Name="AfterBuild">
+  </Target>
+  -->
+</Project>
