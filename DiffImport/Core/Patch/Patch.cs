@@ -429,4 +429,87 @@ namespace GitSharpImport.Core.Patch
 			return false;
 		}
 	}
+
+    internal class Patch2
+    {
+
+        //private int ParseHunks(FileHeader fh, int c, int end)
+        private int ParseHunks(byte[] bytes)
+        {
+            int c = 0;
+            byte[] buf = fh.Buffer;
+            while (c < bytes.Length)
+            {
+                // If we see a file header at this point, we have all of the
+                // hunks for our current file. We should stop and report back
+                // with this position so it can be parsed again later.
+                //
+                if (RawParseUtils.match(buf, c, FileHeader.OLD_NAME) >= 0)
+                    break;
+                if (RawParseUtils.match(buf, c, FileHeader.NEW_NAME) >= 0)
+                    break;
+
+                if (FileHeader.isHunkHdr(buf, c, end) == fh.ParentCount)
+                {
+                    HunkHeader h = fh.newHunkHeader(c);
+                    h.parseHeader();
+                    c = h.parseBody(this, end);
+                    h.EndOffset = c;
+                    fh.addHunk(h);
+                    if (c < end)
+                    {
+                        switch (buf[c])
+                        {
+                            case (byte)'@':
+                            case (byte)'d':
+                            case (byte)'\n':
+                                break;
+
+                            default:
+                                if (RawParseUtils.match(buf, c, SigFooter) < 0)
+                                    warn(buf, c, "Unexpected hunk trailer");
+                                break;
+                        }
+                    }
+                    continue;
+                }
+
+                int eol = RawParseUtils.nextLF(buf, c);
+                if (fh.Hunks.isEmpty() && RawParseUtils.match(buf, c, GitBinary) >= 0)
+                {
+                    fh.PatchType = FileHeader.PatchTypeEnum.GIT_BINARY;
+                    return ParseGitBinary(fh, eol, end);
+                }
+
+                if (fh.Hunks.isEmpty() && BinTrailer.Length < eol - c
+                        && RawParseUtils.match(buf, eol - BinTrailer.Length, BinTrailer) >= 0
+                        && MatchAny(buf, c, BinHeaders))
+                {
+                    // The patch is a binary file diff, with no deltas.
+                    //
+                    fh.PatchType = FileHeader.PatchTypeEnum.BINARY;
+                    return eol;
+                }
+
+                // Skip this line and move to the next. Its probably garbage
+                // After the last hunk of a file.
+                //
+                c = eol;
+            }
+
+            if (fh.Hunks.isEmpty()
+                    && fh.getPatchType() == FileHeader.PatchTypeEnum.UNIFIED
+                    && !fh.hasMetaDataChanges())
+            {
+                // Hmm, an empty patch? If there is no metadata here we
+                // really have a binary patch that we didn't notice above.
+                //
+                fh.PatchType = FileHeader.PatchTypeEnum.BINARY;
+            }
+
+            return c;
+        }
+
+        
+    }
 }

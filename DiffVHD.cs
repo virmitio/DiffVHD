@@ -694,12 +694,15 @@ namespace DiffVHD
                                     if (diff.HasDifferences)
                                     {
                                         var df = new DiffFormatter();
+                                        df.FormatEdits(dest, new RawText(baseBytes), new RawText(srcBytes), diff.GetEdits());
+                                        /*
                                         Stream diffStream = new MemoryStream();
                                         df.FormatEdits(diffStream, new RawText(baseBytes), new RawText(srcBytes), diff.GetEdits());
                                         var fh = new CombinedFileHeader(Patch.ReadFully(diffStream), 0);
                                         var outStr = fh.getScriptText();
                                         byte[] bytes = outStr.Cast<byte>().ToArray();
                                         dest.Write(bytes, 0, bytes.Length);
+                                        */
                                     }
                                     else // Not really different, just different metadata.  skip it.
                                     {
