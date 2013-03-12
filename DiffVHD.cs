@@ -16,7 +16,6 @@ using DiscUtils.Partitions;
 using DiscUtils.Registry;
 using GitSharpImport;
 using GitSharpImport.Core.Diff;
-using GitSharpImport.Core.Merge;
 using GitSharpImport.Core.Patch;
 using GitSharpImport.Core.Util;
 
@@ -658,13 +657,19 @@ namespace DiffVHD
                             else
                                 using (Stream dest = current.Key.Open(FileMode.Open, FileAccess.ReadWrite))
                                 {
-
+                                    var srcBytes = src.toArray();
                                     Patch P = new Patch();
-                                    P.parse(src);
 
-                                    var f = P.getFiles();
-                                    var e = P.getErrors();
+                                    P.ParseHunks(srcBytes);
 
+
+                                    var newBytes = P.SimpleApply(dest.toArray());  // Replace this call with a more sophisticated (read "intellegent") diff application method.
+
+                                    dest.Position = 0;
+                                    dest.Write(newBytes, 0, newBytes.Length);
+                                    dest.SetLength(newBytes.Length);
+                                    
+                                    /*
                                     MergeResult mr = current.Value.Base == null
                                                          ? MergeAlgorithm.merge(new RawText(dest.toArray()),
                                                                                 new RawText(src.toArray()),
@@ -676,6 +681,8 @@ namespace DiffVHD
                                                                                            .toArray()));
                                     bool conflicts = mr.containsConflicts();
                                     bool blurb = conflicts;
+
+                                    */
                                 }
 
                         else

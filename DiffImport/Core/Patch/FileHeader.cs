@@ -55,40 +55,16 @@ namespace GitSharpImport.Core.Patch
 	[Serializable]
 	internal class FileHeader
 	{
-		// Magical file name used for file adds or deletes.
-		internal const string DEV_NULL = "/dev/null";
-
-		private static readonly byte[] OldModeString = Constants.encodeASCII("old mode ");
-
-		private static readonly byte[] NewModeString = Constants.encodeASCII("new mode ");
-
-		protected static readonly byte[] DeletedFileMode = Constants.encodeASCII("deleted file mode ");
-
-		protected static readonly byte[] NewFileMode = Constants.encodeASCII("new file mode ");
-
-		private static readonly byte[] CopyFrom = Constants.encodeASCII("copy from ");
-
-		private static readonly byte[] CopyTo = Constants.encodeASCII("copy to ");
-
-		private static readonly byte[] RenameOld = Constants.encodeASCII("rename old ");
-
-		private static readonly byte[] RenameNew = Constants.encodeASCII("rename new ");
-
-		private static readonly byte[] RenameFrom = Constants.encodeASCII("rename from ");
-
-		private static readonly byte[] RenameTo = Constants.encodeASCII("rename to ");
-
-		private static readonly byte[] SimilarityIndex = Constants.encodeASCII("similarity index ");
-
-		private static readonly byte[] DissimilarityIndex = Constants.encodeASCII("dissimilarity index ");
-
-		protected static readonly byte[] Index = Constants.encodeASCII("index ");
-
+        /*
 		internal static readonly byte[] OLD_NAME = Constants.encodeASCII("--- ");
 
 		internal static readonly byte[] NEW_NAME = Constants.encodeASCII("+++ ");
+        */
+        #region FileHeader non-static members
 
-		/// <summary>
+        /*
+
+        /// <summary>
 		/// General type of change a single file-level patch describes.
 		/// </summary>
 		[Serializable]
@@ -294,17 +270,6 @@ namespace GitSharpImport.Core.Patch
 			}
 
 			return r.ToString();
-		}
-
-		private static bool TrySimpleConversion(Encoding[] charsetGuess)
-		{
-			if (charsetGuess == null) return true;
-
-			for (int i = 1; i < charsetGuess.Length; i++)
-			{
-				if (charsetGuess[i] != charsetGuess[0]) return false;
-			}
-			return true;
 		}
 
 		private string[] ExtractFileLines(Encoding[] csGuess)
@@ -830,6 +795,10 @@ namespace GitSharpImport.Core.Patch
 
 			return true;
 		}
+
+        */
+
+        #endregion
 
 		/// <summary>
 		/// Determine if this is a patch hunk header.

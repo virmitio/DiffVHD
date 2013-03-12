@@ -43,11 +43,16 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using GitSharpImport.Core.Util;
 
 namespace GitSharpImport.Core.Patch
 {
-	/// <summary>
+
+    #region Old Patch class
+    
+/*
+    /// <summary>
 	/// A parsed collection of <seealso cref="FileHeader"/>s from a unified diff patch file.
 	/// </summary>
 	[Serializable]
@@ -86,13 +91,14 @@ namespace GitSharpImport.Core.Patch
 		 * @param fh
 		 *            the header of the file.
 		 */
+/*    
 		internal void addFile(FileHeader fh)
 		{
 			_files.Add(fh);
 		}
 
 		/** @return list of files described in the patch, in occurrence order. */
-		internal List<FileHeader> getFiles()
+/*		internal List<FileHeader> getFiles()
 		{
 			return _files;
 		}
@@ -103,13 +109,13 @@ namespace GitSharpImport.Core.Patch
 		 * @param err
 		 *            the error description.
 		 */
-		internal void addError(FormatError err)
+/*		internal void addError(FormatError err)
 		{
 			_errors.Add(err);
 		}
 
 		/** @return collection of formatting errors, if any. */
-		internal List<FormatError> getErrors()
+/*		internal List<FormatError> getErrors()
 		{
 			return _errors;
 		}
@@ -127,7 +133,7 @@ namespace GitSharpImport.Core.Patch
 		 * @throws IOException
 		 *             there was an error reading from the input stream.
 		 */
-		internal void parse(Stream iStream)
+/*		internal void parse(Stream iStream)
 		{
 		    long pos = iStream.Position;
 			byte[] buf = ReadFully(iStream);
@@ -170,7 +176,7 @@ namespace GitSharpImport.Core.Patch
 		 *            1 past the last position to end parsing. The total length to
 		 *            be parsed is <code>end - ptr</code>.
 		 */
-		internal void parse(byte[] buf, int ptr, int end)
+/*		internal void parse(byte[] buf, int ptr, int end)
 		{
 			while (ptr < end)
 			{
@@ -429,17 +435,38 @@ namespace GitSharpImport.Core.Patch
 			return false;
 		}
 	}
+*/
 
-    internal class Patch2
+    #endregion
+
+    internal class Patch
     {
+        internal static readonly byte[] SigFooter = Constants.encodeASCII("-- \n");
+
+        private List<HunkHeader> _hunks;
+
+        internal List<HunkHeader> Hunks
+        {
+            get { return new List<HunkHeader>(_hunks); }
+        }
+
+        internal Patch()
+        {
+            _hunks = new List<HunkHeader>();
+        }
 
         //private int ParseHunks(FileHeader fh, int c, int end)
-        private int ParseHunks(byte[] bytes)
+        internal int ParseHunks(byte[] bytes)
         {
+
+            FileHeader fh;
+
             int c = 0;
-            byte[] buf = fh.Buffer;
-            while (c < bytes.Length)
+            int end = bytes.Length;
+            byte[] buf = bytes;
+            while (c < end)
             {
+                /*
                 // If we see a file header at this point, we have all of the
                 // hunks for our current file. We should stop and report back
                 // with this position so it can be parsed again later.
@@ -448,14 +475,18 @@ namespace GitSharpImport.Core.Patch
                     break;
                 if (RawParseUtils.match(buf, c, FileHeader.NEW_NAME) >= 0)
                     break;
+                */
 
-                if (FileHeader.isHunkHdr(buf, c, end) == fh.ParentCount)
+                //if (FileHeader.isHunkHdr(buf, c, end) == fh.ParentCount)
+                if ((new int[]{1, 3}).Contains(FileHeader.isHunkHdr(buf, c, end)))
                 {
-                    HunkHeader h = fh.newHunkHeader(c);
+                    //HunkHeader h = fh.newHunkHeader(c);
+                    HunkHeader h = new HunkHeader(buf, c);
                     h.parseHeader();
                     c = h.parseBody(this, end);
                     h.EndOffset = c;
-                    fh.addHunk(h);
+                    //fh.addHunk(h);
+                    _hunks.Add(h);
                     if (c < end)
                     {
                         switch (buf[c])
@@ -467,7 +498,7 @@ namespace GitSharpImport.Core.Patch
 
                             default:
                                 if (RawParseUtils.match(buf, c, SigFooter) < 0)
-                                    warn(buf, c, "Unexpected hunk trailer");
+                                    throw new FormatException(String.Format("Unexpected hunk trailer.  character #{0} of buffer:\n{1}", c, buf.AsString()));
                                 break;
                         }
                     }
@@ -475,21 +506,6 @@ namespace GitSharpImport.Core.Patch
                 }
 
                 int eol = RawParseUtils.nextLF(buf, c);
-                if (fh.Hunks.isEmpty() && RawParseUtils.match(buf, c, GitBinary) >= 0)
-                {
-                    fh.PatchType = FileHeader.PatchTypeEnum.GIT_BINARY;
-                    return ParseGitBinary(fh, eol, end);
-                }
-
-                if (fh.Hunks.isEmpty() && BinTrailer.Length < eol - c
-                        && RawParseUtils.match(buf, eol - BinTrailer.Length, BinTrailer) >= 0
-                        && MatchAny(buf, c, BinHeaders))
-                {
-                    // The patch is a binary file diff, with no deltas.
-                    //
-                    fh.PatchType = FileHeader.PatchTypeEnum.BINARY;
-                    return eol;
-                }
 
                 // Skip this line and move to the next. Its probably garbage
                 // After the last hunk of a file.
@@ -497,19 +513,71 @@ namespace GitSharpImport.Core.Patch
                 c = eol;
             }
 
-            if (fh.Hunks.isEmpty()
-                    && fh.getPatchType() == FileHeader.PatchTypeEnum.UNIFIED
-                    && !fh.hasMetaDataChanges())
+            return c;
+        }
+
+        internal byte[] SimpleApply(byte[] Base)
+        {
+            var curOldLine = 1;
+            int c = 0;
+            int prevC = 0;
+            List<byte> outBytes = new List<byte>();
+
+            foreach (var hunk in _hunks.OrderBy(h => h.OldStartLine))
             {
-                // Hmm, an empty patch? If there is no metadata here we
-                // really have a binary patch that we didn't notice above.
-                //
-                fh.PatchType = FileHeader.PatchTypeEnum.BINARY;
+                while (curOldLine++ < hunk.OldStartLine)
+                    c = RawParseUtils.nextLF(Base, c);
+                outBytes.AddRange(Base.Skip(prevC).Take(c - prevC));
+                prevC = c;
+                curOldLine--; // Corrective decriment from the previous loop.
+
+                int numLines = 0;
+                while(numLines++ < hunk.OldLineCount)
+                    c = RawParseUtils.nextLF(Base, c);
+                string[] oldLines = Base.Skip(prevC).Take(c - prevC).ToArray().AsString().Split('\n');
+                curOldLine += numLines-1;
+
+                byte[] hBytes = hunk.ResultLines();
+                string[] newLines = hBytes.AsString().Split('\n');
+
+                if (!SimpleContextCheck(oldLines, newLines))
+                    throw new InvalidDataException(String.Format("Context test failed.  Hunk:\n{0}", hunk.Buffer.AsString()));
+                outBytes.AddRange(hBytes);
+                
+                prevC = c;
+
             }
 
-            return c;
+            // Remember to add the tail of the file...
+            outBytes.AddRange(Base.Skip(prevC));
+
+            return outBytes.ToArray();
+        }
+
+        private bool SimpleContextCheck(string[] Old, string[] New)
+        {
+            bool startMatch = true, endMatch = true;
+
+            int MaxContextReduction = Math.Min(3, Math.Min(Old.Length-2, New.Length-2));
+
+            for (int i = 0; i < MaxContextReduction; i++)
+            {
+                startMatch &= Old[i].Equals(New[i]);
+                endMatch &= Old[Old.Length - (i + 1)].Equals(New[New.Length - (i + 1)]);
+            }
+
+            return startMatch && endMatch;
         }
 
         
     }
+
+    internal static class ArrExtensions
+    {
+        public static string AsString(this byte[] bytes)
+        {
+            return bytes.Aggregate(String.Empty, (current1, b) => current1 + (char) b);
+        }
+    }
+
 }

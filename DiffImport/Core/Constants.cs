@@ -47,7 +47,6 @@
 using System.Text;
 using System;
 using GitSharpImport.Core.Util;
-using GitSharpImport.Core.Exceptions;
 using GitSharpImport.Core.Util.JavaHelper;
 
 namespace GitSharpImport.Core
@@ -403,91 +402,6 @@ namespace GitSharpImport.Core
                     return EncodedTypeTag;
                 default:
                     throw new ArgumentException("Bad object type: " + typeCode);
-            }
-        }
-
-        /// <summary>
-        /// Parse an encoded type string into a type constant.
-        /// </summary>
-        /// <param name="id">
-        /// <see cref="ObjectId" /> this type string came from; may be null if 
-        /// that is not known at the time the parse is occurring.
-        /// </param>
-        /// <param name="typeString">string version of the type code.</param>
-        /// <param name="endMark">
-        /// Character immediately following the type string. Usually ' '
-        /// (space) or '\n' (line feed).
-        /// </param>
-        /// <param name="offset">
-        /// Position within <paramref name="typeString"/> where the parse
-        /// should start. Updated with the new position (just past
-        /// <paramref name="endMark"/> when the parse is successful).
-        /// </param>
-        /// <returns>
-        /// A type code constant (one of <see cref="OBJ_BLOB"/>,
-        /// <see cref="OBJ_COMMIT"/>, <see cref="OBJ_TAG"/>, <see cref="OBJ_TREE"/>
-        /// </returns>
-        /// <exception cref="CorruptObjectException"></exception>
-        internal static int decodeTypeString(AnyObjectId id, byte[] typeString, byte endMark, MutableInteger offset)
-        {
-            try
-            {
-                int position = offset.value;
-                switch (typeString[position])
-                {
-                    case (byte)'b':
-                        if (typeString[position + 1] != (byte)'l'
-                            || typeString[position + 2] != (byte)'o'
-                            || typeString[position + 3] != (byte)'b'
-                            || typeString[position + 4] != endMark)
-                        {
-                            throw new CorruptObjectException(id, "invalid type");
-                        }
-                        offset.value = position + 5;
-                        return OBJ_BLOB;
-
-                    case (byte)'c':
-                        if (typeString[position + 1] != (byte)'o'
-                                || typeString[position + 2] != (byte)'m'
-                                || typeString[position + 3] != (byte)'m'
-                                || typeString[position + 4] != (byte)'i'
-                                || typeString[position + 5] != (byte)'t'
-                                || typeString[position + 6] != endMark)
-                        {
-                            throw new CorruptObjectException(id, "invalid type");
-                        }
-                        offset.value = position + 7;
-                        return OBJ_COMMIT;
-
-                    case (byte)'t':
-                        switch (typeString[position + 1])
-                        {
-                            case (byte)'a':
-                                if (typeString[position + 2] != (byte)'g'
-                                    || typeString[position + 3] != endMark)
-                                    throw new CorruptObjectException(id, "invalid type");
-                                offset.value = position + 4;
-                                return OBJ_TAG;
-
-                            case (byte)'r':
-                                if (typeString[position + 2] != (byte)'e'
-                                        || typeString[position + 3] != (byte)'e'
-                                        || typeString[position + 4] != endMark)
-                                    throw new CorruptObjectException(id, "invalid type");
-                                offset.value = position + 5;
-                                return OBJ_TREE;
-
-                            default:
-                                throw new CorruptObjectException(id, "invalid type");
-                        }
-
-                    default:
-                        throw new CorruptObjectException(id, "invalid type");
-                }
-            }
-            catch (IndexOutOfRangeException)
-            {
-                throw new CorruptObjectException(id, "invalid type");
             }
         }
 

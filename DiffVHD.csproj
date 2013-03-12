@@ -59,16 +59,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Cdmlets.cs" />
-    <Compile Include="DiffImport\Core\AbbreviatedObjectId.cs" />
-    <Compile Include="DiffImport\Core\AnyObjectId.cs" />
     <Compile Include="DiffImport\Core\Constants.cs" />
-    <Compile Include="DiffImport\Core\Exceptions\CorruptObjectException.cs" />
-    <Compile Include="DiffImport\Core\Exceptions\InvalidObjectIdException.cs" />
-    <Compile Include="DiffImport\Core\FileMode.cs" />
-    <Compile Include="DiffImport\Core\MutableObjectId.cs" />
-    <Compile Include="DiffImport\Core\ObjectChecker.cs" />
-    <Compile Include="DiffImport\Core\ObjectId.cs" />
-    <Compile Include="DiffImport\Core\ObjectType.cs" />
     <Compile Include="DiffImport\Core\Util\Hex.cs" />
     <Compile Include="DiffImport\Core\Util\IListUtil.cs" />
     <Compile Include="DiffImport\Core\Util\IO.cs" />
@@ -94,15 +85,7 @@
     <Compile Include="DiffImport\Core\Diff\MyersDiff.cs" />
     <Compile Include="DiffImport\Core\Diff\RawText.cs" />
     <Compile Include="DiffImport\Core\Diff\Sequence.cs" />
-    <Compile Include="DiffImport\Core\Merge\MergeAlgorithm.cs" />
-    <Compile Include="DiffImport\Core\Merge\MergeChunk.cs" />
-    <Compile Include="DiffImport\Core\Merge\MergeFormatter.cs" />
-    <Compile Include="DiffImport\Core\Merge\MergeResult.cs" />
-    <Compile Include="DiffImport\Core\Patch\BinaryHunk.cs" />
-    <Compile Include="DiffImport\Core\Patch\CombinedFileHeader.cs" />
-    <Compile Include="DiffImport\Core\Patch\CombinedHunkHeader.cs" />
     <Compile Include="DiffImport\Core\Patch\FileHeader.cs" />
-    <Compile Include="DiffImport\Core\Patch\FormatError.cs" />
     <Compile Include="DiffImport\Core\Patch\HunkHeader.cs" />
     <Compile Include="DiffImport\Core\Patch\Patch.cs" />
     <Compile Include="DiffImport\Core\Util\IntList.cs" />

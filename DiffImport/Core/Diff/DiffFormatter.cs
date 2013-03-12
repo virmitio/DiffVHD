@@ -84,6 +84,7 @@ namespace GitSharpImport.Core.Diff
 			_context = lineCount;
 		}
 
+        /*
 		/// <summary>
 		/// Format a patch script, reusing a previously parsed FileHeader.
 		///	<para />
@@ -125,6 +126,7 @@ namespace GitSharpImport.Core.Diff
 
 			FormatEdits(@out, a, b, head.ToEditList());
 		}
+        */
 
         /// <summary>
         /// Formats a list of edits in unified diff format

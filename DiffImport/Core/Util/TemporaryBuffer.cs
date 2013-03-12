@@ -200,7 +200,7 @@ namespace GitSharpImport.Core.Util
         /// <summary>
         /// Convert this buffer's contents into a contiguous byte array.
         /// <para />
-        /// The buffer is only complete After {@link #close()} has been invoked.
+        /// The buffer is only complete After <see cref="close()"/> has been invoked.
         /// </summary>
         /// <returns>the complete byte array; length matches <see cref="Length"/>.</returns>
         internal virtual byte[] ToArray()
@@ -305,9 +305,9 @@ namespace GitSharpImport.Core.Util
                     _overflow = null;
                 }
             }
-#if DEBUG
+//#if DEBUG
             GC.SuppressFinalize(this); // Disarm lock-release checker
-#endif
+//#endif
         }
 
         public void Dispose()

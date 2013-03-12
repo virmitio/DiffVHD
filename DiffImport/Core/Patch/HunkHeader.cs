@@ -47,6 +47,8 @@ using GitSharpImport.Core.Util;
 
 namespace GitSharpImport.Core.Patch
 {
+    #region Old HunkHeader
+    /*
 	/// <summary>
 	/// Hunk header describing the layout of a single block of lines.
 	/// </summary>
@@ -377,13 +379,16 @@ namespace GitSharpImport.Core.Patch
 			offsets[fileIdx] = end < 0 ? s.Length : end + 1;
 		}
 	}
+    */
+    #endregion
 
-    internal class Hunk
+    internal class HunkHeader
     {
-        //private readonly FileHeader _file;
+        // private readonly FileHeader _file;
         // private readonly OldImage _oldImage;
-        //private readonly int _startOffset;
+        private readonly int _startOffset;
 
+        /*
         internal Hunk(FileHeader fh, int offset)
             : this(fh, offset, new OldImage(fh))
         {
@@ -395,11 +400,16 @@ namespace GitSharpImport.Core.Patch
 //            _startOffset = offset;
 //            _oldImage = oi;
         }
+        */
 
-        internal Hunk(byte[] data)
+        internal HunkHeader(byte[] data, int offset, byte[] oldFileBytes = null)
         {
             Buffer = data;
+            _startOffset = offset;
+            _oldBytes = oldFileBytes;
         }
+
+        private byte[] _oldBytes;
 
         /*
         /// <summary>
@@ -417,7 +427,7 @@ namespace GitSharpImport.Core.Patch
         /// <returns></returns>
         internal byte[] Buffer { get; private set; }
 
-        /*
+        
         /// <summary>
         /// Offset within <seealso cref="FileHeader.Buffer"/> to the "@@ -" line.
         /// </summary>
@@ -427,15 +437,22 @@ namespace GitSharpImport.Core.Patch
         }
 
         /// <summary>
-        /// Position 1 past the end of this hunk within <see cref="File"/>'s buffer.
+        /// Position 1 past the end of this hunk within <see cref="Buffer"/>.
         /// </summary>
         internal int EndOffset { get; set; }
 
+        /*
         internal virtual OldImage OldImage
         {
             get { return _oldImage; }
         }
         */
+
+        internal int OldStartLine { get; set; }
+        internal int OldLineCount { get; set; }
+        internal int OldLinesDeleted { get; set; }
+        internal int OldLinesAdded { get; set; }
+
 
         /// <summary>
         /// First line number in the post-image file where the hunk starts.
@@ -460,8 +477,8 @@ namespace GitSharpImport.Core.Patch
         {
             var r = new EditList();
             byte[] buf = Buffer;
-            int c = RawParseUtils.nextLF(buf, 0);
-            // int oLine = _oldImage.StartLine;
+            int c = RawParseUtils.nextLF(buf, _startOffset);
+            int oLine = OldStartLine;
             int nLine = NewStartLine;
             Edit inEdit = null;
 
@@ -519,26 +536,26 @@ namespace GitSharpImport.Core.Patch
         {
             // Parse "@@ -236,9 +236,9 @@ protected boolean"
             //
-            byte[] buf = _file.Buffer;
+            byte[] buf = Buffer;
             var ptr = new MutableInteger
             {
                 value = RawParseUtils.nextLF(buf, _startOffset, (byte)' ')
             };
 
-            _oldImage.StartLine = -1 * RawParseUtils.parseBase10(buf, ptr.value, ptr);
+            OldStartLine = -1 * RawParseUtils.parseBase10(buf, ptr.value, ptr);
 
-            _oldImage.LineCount = buf[ptr.value] == ',' ? RawParseUtils.parseBase10(buf, ptr.value + 1, ptr) : 1;
+            OldLineCount = buf[ptr.value] == ',' ? RawParseUtils.parseBase10(buf, ptr.value + 1, ptr) : 1;
             NewStartLine = RawParseUtils.parseBase10(buf, ptr.value + 1, ptr);
             NewLineCount = buf[ptr.value] == ',' ? RawParseUtils.parseBase10(buf, ptr.value + 1, ptr) : 1;
         }
 
         internal virtual int parseBody(Patch script, int end)
         {
-            byte[] buf = _file.Buffer;
+            byte[] buf = Buffer;
             int c = RawParseUtils.nextLF(buf, _startOffset), last = c;
 
-            _oldImage.LinesDeleted = 0;
-            _oldImage.LinesAdded = 0;
+            OldLinesDeleted = 0;
+            OldLinesAdded = 0;
 
             for (; c < end; last = c, c = RawParseUtils.nextLF(buf, c))
             {
@@ -551,11 +568,11 @@ namespace GitSharpImport.Core.Patch
                         continue;
 
                     case (byte)'-':
-                        _oldImage.LinesDeleted++;
+                        OldLinesDeleted++;
                         continue;
 
                     case (byte)'+':
-                        _oldImage.LinesAdded++;
+                        OldLinesAdded++;
                         continue;
 
                     case (byte)'\\': // Matches "\ No newline at end of file"
@@ -572,8 +589,8 @@ namespace GitSharpImport.Core.Patch
                 }
             }
 
-            if (last < end && LinesContext + _oldImage.LinesDeleted - 1 == _oldImage.LineCount
-                && LinesContext + _oldImage.LinesAdded == NewLineCount
+            if (last < end && LinesContext + OldLinesDeleted - 1 == OldLineCount
+                && LinesContext + OldLinesAdded == NewLineCount
                 && RawParseUtils.match(buf, last, Patch.SigFooter) >= 0)
             {
                 // This is an extremely common occurrence of "corruption".
@@ -581,30 +598,30 @@ namespace GitSharpImport.Core.Patch
                 // and git diff adds the git executable version number.
                 // Let it slide; the hunk otherwise looked sound.
                 //
-                _oldImage.LinesDeleted--;
+                OldLinesDeleted--;
                 return last;
             }
 
-            if (LinesContext + _oldImage.LinesDeleted < _oldImage.LineCount)
+            if (LinesContext + OldLinesDeleted < OldLineCount)
             {
-                int missingCount = _oldImage.LineCount - (LinesContext + _oldImage.LinesDeleted);
-                script.error(buf, _startOffset, "Truncated hunk, at least "
-                                                + missingCount + " old lines is missing");
+                int missingCount = OldLineCount - (LinesContext + OldLinesDeleted);
+                //script.error(buf, _startOffset, "Truncated hunk, at least " + missingCount + " old lines is missing");
+                throw new FormatException(String.Format("Truncated hunk, at least {0} old line(s) missing.  Hunk start @ {1}.  Hunk:\n{2}",missingCount, _startOffset, buf));
             }
-            else if (LinesContext + _oldImage.LinesAdded < NewLineCount)
+            else if (LinesContext + OldLinesAdded < NewLineCount)
             {
-                int missingCount = NewLineCount - (LinesContext + _oldImage.LinesAdded);
-                script.error(buf, _startOffset, "Truncated hunk, at least "
-                                                + missingCount + " new lines is missing");
+                int missingCount = NewLineCount - (LinesContext + OldLinesAdded);
+                //script.error(buf, _startOffset, "Truncated hunk, at least " + missingCount + " new lines is missing");
+                throw new FormatException(String.Format("Truncated hunk, at least {0} new line(s) missing.  Hunk start @ {1}.  Hunk:\n{2}", missingCount, _startOffset, buf));
             }
-            else if (LinesContext + _oldImage.LinesDeleted > _oldImage.LineCount
-                     || LinesContext + _oldImage.LinesAdded > NewLineCount)
+            else if (LinesContext + OldLinesDeleted > OldLineCount
+                     || LinesContext + OldLinesAdded > NewLineCount)
             {
-                string oldcnt = _oldImage.LineCount + ":" + NewLineCount;
-                string newcnt = (LinesContext + _oldImage.LinesDeleted) + ":"
-                                + (LinesContext + _oldImage.LinesAdded);
-                script.warn(buf, _startOffset, "Hunk header " + oldcnt
-                                               + " does not match body line count of " + newcnt);
+                string oldcnt = OldLineCount + ":" + NewLineCount;
+                string newcnt = (LinesContext + OldLinesDeleted) + ":"
+                                + (LinesContext + OldLinesAdded);
+                //script.warn(buf, _startOffset, "Hunk header " + oldcnt + " does not match body line count of " + newcnt);
+                throw new FormatException(String.Format("Hunk header {0} does not match body line count of {1}.  Hunk start @ {1}.  Hunk:\n{2}" + oldcnt, newcnt, _startOffset, buf));
             }
 
             return c;
@@ -612,7 +629,7 @@ namespace GitSharpImport.Core.Patch
 
         internal void extractFileLines(TemporaryBuffer[] outStream)
         {
-            byte[] buf = _file.Buffer;
+            byte[] buf = Buffer;
             int ptr = _startOffset;
             int eol = RawParseUtils.nextLF(buf, ptr);
             if (EndOffset <= eol)
@@ -651,9 +668,59 @@ namespace GitSharpImport.Core.Patch
             }
         }
 
+        internal byte[] ResultLines()
+        {
+            TemporaryBuffer output = new LocalFileBuffer();
+            try
+            {
+                byte[] buf = Buffer;
+                int ptr = _startOffset;
+                int eol = RawParseUtils.nextLF(buf, ptr);
+                if (EndOffset <= eol)
+                    return output.ToArray();
+
+                // Treat the hunk header as though it were from the ancestor,
+                // as it may have a function header appearing After it which
+                // was copied out of the ancestor file.
+                //
+                //            outStream[0].write(buf, ptr, eol - ptr);
+
+                bool break_scan = false;
+                for (ptr = eol; ptr < EndOffset; ptr = eol)
+                {
+                    eol = RawParseUtils.nextLF(buf, ptr);
+                    switch (buf[ptr])
+                    {
+                        case (byte) ' ':
+                        case (byte) '\n':
+                        case (byte) '\\':
+                            //                        outStream[0].write(buf, ptr, eol - ptr);
+                            output.write(buf, ptr + 1, eol - (ptr + 1));
+                            break;
+                        case (byte) '-':
+                            //                        outStream[0].write(buf, ptr, eol - ptr);
+                            break;
+                        case (byte) '+':
+                            output.write(buf, ptr + 1, eol - (ptr + 1));
+                            break;
+                        default:
+                            break_scan = true;
+                            break;
+                    }
+                    if (break_scan)
+                        break;
+                }
+                return output.ToArray();
+            }
+            finally
+            {
+                output.close();
+            }
+        }
+
         internal virtual void extractFileLines(StringBuilder sb, string[] text, int[] offsets)
         {
-            byte[] buf = _file.Buffer;
+            byte[] buf = Buffer;
             int ptr = _startOffset;
             int eol = RawParseUtils.nextLF(buf, ptr);
             if (EndOffset <= eol)
@@ -714,7 +781,7 @@ namespace GitSharpImport.Core.Patch
 
 
 	#region Nested Types
-
+    /*
 	/// <summary>
 	/// Details about an old image of the file.
 	/// </summary>
@@ -800,6 +867,6 @@ namespace GitSharpImport.Core.Patch
 			get { return _imagePos; }
 		}
 	}
-
+    */
 	#endregion
 }
