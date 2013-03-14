@@ -1,0 +1,365 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<helpItems xmlns="http://msh" schema="maml">
+<command:command
+	xmlns:maml="http://schemas.microsoft.com/maml/2004/10"
+	xmlns:command="http://schemas.microsoft.com/maml/dev/command/2004/10" 
+	xmlns:dev="http://schemas.microsoft.com/maml/dev/2004/10">
+	<command:details>
+		<command:name>Compare-VHD</command:name>
+		<command:verb>Compare</command:verb>
+		<command:noun>VHD</command:noun>
+	</command:details>
+	<maml:description>
+		<maml:para>This will produce an output VHD file containing the file and registry differences/changes needed to produce a copy of Child from Base.</maml:para>
+	</maml:description>
+	<command:syntax>
+		<command:syntaxItem>
+			<maml:name>Compare-VHD</maml:name>
+			<command:parameter required="true" position="0">
+				<maml:name>Base</maml:name>
+				<command:parameterValue required="true">
+					string
+				</command:parameterValue>
+			</command:parameter>
+			<command:parameter required="true" position="1">
+				<maml:name>Child</maml:name>
+				<command:parameterValue required="true">
+					string
+				</command:parameterValue>
+			</command:parameter>
+			<command:parameter required="true" position="2">
+				<maml:name>Output</maml:name>
+				<command:parameterValue required="true">
+					string
+				</command:parameterValue>
+			</command:parameter>
+			<command:parameter required="false">
+				<maml:name>Partition</maml:name>
+				<command:parameterValue required="true">
+					int
+				</command:parameterValue>
+			</command:parameter>
+			<command:parameter required="false">
+				<maml:name>Partition2</maml:name>
+				<command:parameterValue required="true">
+					int
+				</command:parameterValue>
+			</command:parameter>
+			<command:parameter required="false">
+				<maml:name>Overwrite</maml:name>
+			</command:parameter>
+			<command:parameter required="false">
+				<maml:name>Comparison</maml:name>
+				<command:parameterValue required="true">
+					ComparisonStyle
+				</command:parameterValue>
+			</command:parameter>
+		</command:syntaxItem>
+	</command:syntax>
+	<command:parameters>
+		<command:parameter required="true" position="0">
+			<maml:name>Base</maml:name>
+			<maml:description>
+				<maml:para> The fully-qualified path to the "Before" virtual disk image to compare. </maml:para>
+			</maml:description>
+			<command:parameterValue required="true">
+				string
+			</command:parameterValue>
+		</command:parameter>
+		<command:parameter required="true" position="1">
+			<maml:name>Child</maml:name>
+			<maml:description>
+				<maml:para> The fully-qualified path to the "After" virtual disk image to compare. </maml:para>
+			</maml:description>
+			<command:parameterValue required="true">
+				string
+			</command:parameterValue>
+		</command:parameter>
+		<command:parameter required="true" position="2">
+			<maml:name>Output</maml:name>
+			<maml:description>
+				<maml:para> The fully-qualified path to the output file.  This file will be in VHD format. </maml:para>
+			</maml:description>
+			<command:parameterValue required="true">
+				string
+			</command:parameterValue>
+		</command:parameter>
+		<command:parameter required="false">
+			<maml:name>Partition</maml:name>
+			<maml:description>
+				<maml:para> A 0-indexed partition number.  Providing this will compare only &lt;Partition&gt; of &lt;Base&gt; to &lt;Partition&gt; of &lt;Child&gt;. If omitted, all partitions will be compared. </maml:para>
+			</maml:description>
+			<command:parameterValue required="true">
+				int
+			</command:parameterValue>
+		</command:parameter>
+		<command:parameter required="false">
+			<maml:name>Partition2</maml:name>
+			<maml:description>
+				<maml:para> When used with &lt;Partition&gt;, will compare &lt;Partition&gt; of &lt;Base&gt; to &lt;Partition2&gt; of &lt;Child&gt;.  Ignored if &lt;Partition&gt; is not set. </maml:para>
+			</maml:description>
+			<command:parameterValue required="true">
+				int
+			</command:parameterValue>
+		</command:parameter>
+		<command:parameter required="false">
+			<maml:name>Overwrite</maml:name>
+			<maml:description>
+				<maml:para> If set, will overwrite the output file if it already exists.  Normal behaviour is to halt with an error. </maml:para>
+			</maml:description>
+		</command:parameter>
+		<command:parameter required="false">
+			<maml:name>Comparison</maml:name>
+			<maml:description>
+				<maml:para> The method of file comparison that should be used. </maml:para>
+			</maml:description>
+			<command:parameterValue required="true">
+				ComparisonStyle
+			</command:parameterValue>
+			<dev:defaultValue> DateTimeOnly </dev:defaultValue>
+			<dev:possibleValues>
+				<dev:possibleValue>
+					<dev:value> NameOnly </dev:value>
+					<maml:description>
+						<maml:para> Files of identical name will be assumed to be identical and unchanged. </maml:para>
+					</maml:description>
+				</dev:possibleValue>
+				<dev:possibleValue>
+					<dev:value> DateTimeOnly </dev:value>
+					<maml:description>
+						<maml:para> Files will be assumed the same only if they have the same "Last Modified" DateTime. </maml:para>
+					</maml:description>
+				</dev:possibleValue>
+				<dev:possibleValue>
+					<dev:value> BinaryOnly </dev:value>
+					<maml:description>
+						<maml:para> Files will always have their primary data streams compared byte by byte.  No other comparison will be attempted before the binary comparison. </maml:para>
+					</maml:description>
+				</dev:possibleValue>
+				<dev:possibleValue>
+					<dev:value> Journaled </dev:value>
+					<maml:description>
+						<maml:para> [NTFS Only] Files will be assumed identical if the most recent NTFS JournalID is identical, otherwise assumed different. </maml:para>
+					</maml:description>
+				</dev:possibleValue>
+				<dev:possibleValue>
+					<dev:value> Full </dev:value>
+					<maml:description>
+						<maml:para> Files will be compared by "Last Modified" DateTime.  If this is identical, a binary comparison will be performed on the primary data streams. </maml:para>
+					</maml:description>
+				</dev:possibleValue>
+			</dev:possibleValues>
+		</command:parameter>
+	</command:parameters>
+	<maml:alertSet>
+		<maml:title>NOTE:</maml:title>
+		<maml:alert>
+			<maml:para> The &lt;Base&gt; and &lt;Child&gt; disk images must contain the same number of partitions and each partition must be the same format as its counterpart in the other disk image.  It is still possible to perform a comparison of specific partitions from disk images with different numbers of partitions, but the two paritions being compared must have the same formatting. </maml:para>
+			<maml:para> (i.e. Both partitions are NTFS, or both FAT32, etc.) </maml:para>
+			<maml:para></maml:para>
+		</maml:alert>
+	</maml:alertSet>
+	<command:examples>
+		<command:example>
+			<maml:title>----------  EXAMPLE 1  ----------</maml:title>
+			<maml:Introduction>
+				<maml:paragraph>C:PS&gt; </maml:paragraph>
+			</maml:Introduction>
+			<dev:code> compare-vhd c:\base.vhd c:\child.vhd c:\diff.vhd </dev:code>
+			<dev:remarks>
+				<maml:para> This will compare all partitions of 'base.vhd' against 'child.vhd' and write the resulting differences to 'diff.vhd'. </maml:para>
+				<maml:para></maml:para>
+			</dev:remarks>
+		</command:example>
+		<command:example>
+			<maml:title>----------  EXAMPLE 2  ----------</maml:title>
+			<maml:Introduction>
+				<maml:paragraph>C:PS&gt; </maml:paragraph>
+			</maml:Introduction>
+			<dev:code> compare-vhd c:\base.vhd c:\child.vhd c:\diff.vhd -Partition 1 -Comparison Journaled </dev:code>
+			<dev:remarks>
+				<maml:para> This will compare partition 1 (the 2nd logic partition) of 'base.vhd' against partition 1 of 'child.vhd' looking only at the NTFS journal to determine if two files are identical or not. The results will be writen to 'diff.vhd'. </maml:para>
+				<maml:para></maml:para>
+			</dev:remarks>
+		</command:example>
+		<command:example>
+			<maml:title>----------  EXAMPLE 3  ----------</maml:title>
+			<maml:Introduction>
+				<maml:paragraph>C:PS&gt; </maml:paragraph>
+			</maml:Introduction>
+			<dev:code> compare-vhd c:\base.vhd c:\child.vhd c:\diff.vhd -Partition 1 -Partition2 0 -Comparison BinaryOnly -Overwrite </dev:code>
+			<dev:remarks>
+				<maml:para> This will compare all partition 1 of 'base.vhd' against partition 0 of 'child.vhd'.  Every pair of files will be compared byte-for-byte and the results will be writen to 'diff.vhd', replacing it if it already existed. </maml:para>
+				<maml:para></maml:para>
+			</dev:remarks>
+		</command:example>
+	</command:examples>
+	<maml:relatedLinks>
+		<maml:navigationLink>
+			<maml:linkText> Source code:  https://github.com/virmitio/DiffVHD </maml:linkText>
+		</maml:navigationLink>
+	</maml:relatedLinks>
+</command:command>
+<command:command
+	xmlns:maml="http://schemas.microsoft.com/maml/2004/10"
+	xmlns:command="http://schemas.microsoft.com/maml/dev/command/2004/10" 
+	xmlns:dev="http://schemas.microsoft.com/maml/dev/2004/10">
+	<command:details>
+		<command:name>Apply-VHDDiff</command:name>
+		<command:verb>Apply</command:verb>
+		<command:noun>VHDDiff</command:noun>
+	</command:details>
+	<maml:description>
+		<maml:para>Attempts to apply the changes in a diff VHD generated from 'Compare-VHD' to a virtual hard disk.</maml:para>
+	</maml:description>
+	<command:syntax>
+		<command:syntaxItem>
+			<maml:name>Apply-VHDDiff</maml:name>
+			<command:parameter required="true" position="0">
+				<maml:name>Base</maml:name>
+				<command:parameterValue required="true">
+					string
+				</command:parameterValue>
+			</command:parameter>
+			<command:parameter required="true" position="1">
+				<maml:name>Diff</maml:name>
+				<command:parameterValue required="true">
+					string
+				</command:parameterValue>
+			</command:parameter>
+			<command:parameter position="2">
+				<maml:name>Output</maml:name>
+				<command:parameterValue required="true">
+					string
+				</command:parameterValue>
+			</command:parameter>
+			<command:parameter required="false">
+				<maml:name>MakeDifferencingDisk</maml:name>
+			</command:parameter>
+			<command:parameter required="false">
+				<maml:name>Partition</maml:name>
+				<command:parameterValue required="true">
+					int
+				</command:parameterValue>
+			</command:parameter>
+			<command:parameter required="false">
+				<maml:name>Partition2</maml:name>
+				<command:parameterValue required="true">
+					int
+				</command:parameterValue>
+			</command:parameter>
+			<command:parameter required="false">
+				<maml:name>Overwrite</maml:name>
+			</command:parameter>
+		</command:syntaxItem>
+	</command:syntax>
+	<command:parameters>
+		<command:parameter required="true" position="0">
+			<maml:name>Base</maml:name>
+			<maml:description>
+				<maml:para> The fully-qualified path to the virtual disk image to apply differences to. </maml:para>
+			</maml:description>
+			<command:parameterValue required="true">
+				string
+			</command:parameterValue>
+		</command:parameter>
+		<command:parameter required="true" position="1">
+			<maml:name>Diff</maml:name>
+			<maml:description>
+				<maml:para> The fully-qualified path to the "differences" VHD to be applied. </maml:para>
+			</maml:description>
+			<command:parameterValue required="true">
+				string
+			</command:parameterValue>
+		</command:parameter>
+		<command:parameter position="2">
+			<maml:name>Output</maml:name>
+			<maml:description>
+				<maml:para> The fully-qualified path to the output file.  Failing to specify this will attempt to replace &lt;Base&gt; with the resulting applied image. </maml:para>
+			</maml:description>
+			<command:parameterValue required="true">
+				string
+			</command:parameterValue>
+		</command:parameter>
+		<command:parameter required="false">
+			<maml:name>MakeDifferencingDisk</maml:name>
+			<maml:description>
+				<maml:para> If set, will write the output as a differencing disk with &lt;Base&gt; as the parent disk.  Otherwise, &lt;Base&gt; will be copied or replaced according to the &lt;Output&gt; parameter. </maml:para>
+			</maml:description>
+		</command:parameter>
+		<command:parameter required="false">
+			<maml:name>Partition</maml:name>
+			<maml:description>
+				<maml:para> A 0-indexed partition number.  Providing this will apply only &lt;Partition&gt; of &lt;Diff&gt; to &lt;Partition&gt; of &lt;Base&gt;. If omitted, all partitions will be applied. </maml:para>
+			</maml:description>
+			<command:parameterValue required="true">
+				int
+			</command:parameterValue>
+		</command:parameter>
+		<command:parameter required="false">
+			<maml:name>Partition2</maml:name>
+			<maml:description>
+				<maml:para> When used with &lt;Partition&gt;, will apply &lt;Partition2&gt; of &lt;Diff&gt; to &lt;Partition&gt; of &lt;Base&gt;.  Ignored if &lt;Partition&gt; is not set. </maml:para>
+			</maml:description>
+			<command:parameterValue required="true">
+				int
+			</command:parameterValue>
+		</command:parameter>
+		<command:parameter required="false">
+			<maml:name>Overwrite</maml:name>
+			<maml:description>
+				<maml:para> If set, will overwrite the output file if it already exists.  Normal behaviour is to halt with an error.</maml:para>
+				<maml:para> WARNING: Setting this with no &lt;Output&gt; provided will replace &lt;Base&gt; and could result in data loss!.</maml:para>
+			</maml:description>
+		</command:parameter>
+	</command:parameters>
+	<maml:alertSet>
+		<maml:title>NOTE:</maml:title>
+		<maml:alert>
+			<maml:para> The &lt;Base&gt; and &lt;Diff&gt; disk images must contain the same number of partitions and each partition must be the same format as its counterpart in the other disk image.  It is still apply a diff of specific partitions from disk images with different numbers of partitions, but the two paritions being compared must have the same formatting. </maml:para>
+			<maml:para> (i.e. Both partitions are NTFS, or both FAT32, etc.) </maml:para>
+			<maml:para></maml:para>
+		</maml:alert>
+	</maml:alertSet>
+	<command:examples>
+		<command:example>
+			<maml:title>----------  EXAMPLE 1  ----------</maml:title>
+			<maml:Introduction>
+				<maml:paragraph>C:PS&gt; </maml:paragraph>
+			</maml:Introduction>
+			<dev:code> apply-vhddiff c:\base.vhd c:\diff.vhd c:\out.vhd </dev:code>
+			<dev:remarks>
+				<maml:para> This will apply the differences on all partitions of 'diff.vhd' to 'base.vhd' and write the resulting image to 'out.vhd'. </maml:para>
+				<maml:para></maml:para>
+			</dev:remarks>
+		</command:example>
+		<command:example>
+			<maml:title>----------  EXAMPLE 2  ----------</maml:title>
+			<maml:Introduction>
+				<maml:paragraph>C:PS&gt; </maml:paragraph>
+			</maml:Introduction>
+			<dev:code> apply-vhddiff c:\base.vhd c:\diff.vhd c:\out.vhd -Partition 1 -MakeDifferencingDisk </dev:code>
+			<dev:remarks>
+				<maml:para> This will apply the differencs from partition 1 (the 2nd logic partition) of 'diff.vhd' to partition 1 of 'base.vhd' and write the results to 'out.vhd' as a differencing VHD with 'base.vhd' as the parent. </maml:para>
+				<maml:para></maml:para>
+			</dev:remarks>
+		</command:example>
+		<command:example>
+			<maml:title>----------  EXAMPLE 3  ----------</maml:title>
+			<maml:Introduction>
+				<maml:paragraph>C:PS&gt; </maml:paragraph>
+			</maml:Introduction>
+			<dev:code> apply-vhddiff c:\base.vhd c:\diff.vhd -Partition 1 -Partition2 0 -Overwrite </dev:code>
+			<dev:remarks>
+				<maml:para> This will apply all differences from partition 0 of 'diff.vhd' to partition 1 of 'base.vhd'.  This will change 'base.vhd' in place. </maml:para>
+				<maml:para></maml:para>
+			</dev:remarks>
+		</command:example>
+	</command:examples>
+	<maml:relatedLinks>
+		<maml:navigationLink>
+			<maml:linkText> Source code:  https://github.com/virmitio/DiffVHD </maml:linkText>
+		</maml:navigationLink>
+	</maml:relatedLinks>
+</command:command>
+</helpItems>
