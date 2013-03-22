@@ -65,6 +65,12 @@ namespace DiffVHD
         public SwitchParameter Overwrite = false;
 
         /// <summary>
+        /// [Optional] If set, will populate the diff VHD with a binary copy of any files found to be changed.  Normal behaviour is to populate with a textual diff between <seealso cref="Base"/> and <seealso cref="Child"/>.
+        /// </summary>
+        [Parameter(HelpMessage = @"[Optional] If set, will populate the diff VHD with a binary copy of any files found to be changed.  Normal behaviour is to populate with a textual diff between 'Base' and 'Child'.")]
+        public SwitchParameter KeepAsBinary = false;
+
+        /// <summary>
         /// [Optional] The method of comparison to use.  Default is <seealso cref="DiffVHD.ComparisonStyle.DateTimeOnly"/>.  Valid comparison styles are:
         /// <list type="DiffVHD.ComparisonStyle">
         /// <item>NameOnly</item>
@@ -95,9 +101,9 @@ namespace DiffVHD
             if (Partition.HasValue)
                 if (Partition2.HasValue)
                     DiffVHD.CreateDiff(Base, Child, Output, Force: Overwrite,
-                                       Partition: new Tuple<int, int>(Partition.Value, Partition2.Value), Style: Comparison);
-                else DiffVHD.CreateDiff(Base, Child, Output, Partition, Force: Overwrite, Style: Comparison);
-            else DiffVHD.CreateDiff(Base, Child, Output, Force: Overwrite, Style: Comparison);
+                        Partition: new Tuple<int, int>(Partition.Value, Partition2.Value), Style: Comparison, AsBinary: KeepAsBinary);
+                else DiffVHD.CreateDiff(Base, Child, Output, Partition, Force: Overwrite, Style: Comparison, AsBinary: KeepAsBinary);
+            else DiffVHD.CreateDiff(Base, Child, Output, Force: Overwrite, Style: Comparison, AsBinary: KeepAsBinary);
 
         }
     }

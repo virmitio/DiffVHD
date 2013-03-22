@@ -694,14 +694,14 @@ namespace GitSharpImport.Core.Patch
                         case (byte) ' ':
                         case (byte) '\n':
                         case (byte) '\\':
-                            //                        outStream[0].write(buf, ptr, eol - ptr);
-                            output.write(buf, ptr + 1, eol - (ptr + 1));
+                            output.write(buf, ptr, eol - ptr);
+                            //output.write(buf, ptr + 1, eol - (ptr + 1));
                             break;
                         case (byte) '-':
-                            //                        outStream[0].write(buf, ptr, eol - ptr);
+                            output.write(buf, ptr, eol - ptr);
                             break;
                         case (byte) '+':
-                            output.write(buf, ptr + 1, eol - (ptr + 1));
+                            output.write(buf, ptr, eol);
                             break;
                         default:
                             break_scan = true;

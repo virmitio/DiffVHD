@@ -34,13 +34,14 @@ using GitSharpImport.Core.Util;
 
 namespace DiffVHD
 {
+    public enum DiskType
+    {
+        VHD,
+        VHDX
+    }
+
     public static class DiffVHD
     {
-        public enum DiskType
-        {
-            VHD,
-            VHDX
-        }
 
         private const string RootFiles = "FILES";
         private const string RootSystemRegistry = @"REGISTRY\\SYSTEM";
@@ -77,14 +78,15 @@ namespace DiffVHD
         /// <param name="OldVHD"></param>
         /// <param name="NewVHD"></param>
         /// <param name="Output">Filename to the output file.  Method will fail if this already exists unless Force is passed as 'true'.</param>
-        /// <param name="OutputType">A <see cref="DiffVHD.DiskType"/> which specifies the output file format.</param>
+        /// <param name="OutputType">A <see cref="DiskType"/> which specifies the output file format.</param>
         /// <param name="Force">If true, will overwrite the Output file if it already exists.  Defaults to 'false'.</param>
         /// <param name="Partition">The 0-indexed partition number to compare from each disk file.</param>
-        /// <param name="Style"></param>
+        /// <param name="Style">The <see cref="DiffVHD.ComparisonStyle"/> to be used when comparing individual files.</param>
+        /// <param name="AsBinary">If true, the resultant diff will contain the complete binary file from the child for each file found to be different.  Default is to only do this for non-text files and record a textual diff instead whenever possible.</param>
         /// <returns></returns>
-        public static void CreateDiff(string OldVHD, string NewVHD, string Output, int? Partition, DiskType OutputType = DiskType.VHD, bool Force = false, ComparisonStyle Style = ComparisonStyle.DateTimeOnly)
+        public static void CreateDiff(string OldVHD, string NewVHD, string Output, int? Partition, DiskType OutputType = DiskType.VHD, bool Force = false, ComparisonStyle Style = ComparisonStyle.DateTimeOnly, bool AsBinary = false)
         {
-            CreateDiff(OldVHD, NewVHD, Output, OutputType, Force, Partition.HasValue ? new Tuple<int, int>(Partition.Value, Partition.Value) : null, Style: Style);
+            CreateDiff(OldVHD, NewVHD, Output, OutputType, Force, Partition.HasValue ? new Tuple<int, int>(Partition.Value, Partition.Value) : null, Style: Style, AsBinary: AsBinary);
         }
 
         /// <summary>
@@ -93,12 +95,13 @@ namespace DiffVHD
         /// <param name="OldVHD"></param>
         /// <param name="NewVHD"></param>
         /// <param name="Output">Filename to the output file.  Method will fail if this already exists unless Force is passed as 'true'.</param>
-        /// <param name="OutputType">A <see cref="DiffVHD.DiskType"/> which specifies the output file format.</param>
+        /// <param name="OutputType">A <see cref="DiskType"/> which specifies the output file format.</param>
         /// <param name="Force">If true, will overwrite the Output file if it already exists.  Defaults to 'false'.</param>
         /// <param name="Partition">An int tuple which declares a specific pair of partitions to compare.  The first value in the tuple will be the 0-indexed partition number from OldVHD to compare against.  The second value of the tuple will be the 0-indexed parition from NewVHD to compare with.</param>
-        /// <param name="Style"></param>
+        /// <param name="Style">The <see cref="DiffVHD.ComparisonStyle"/> to be used when comparing individual files.</param>
+        /// <param name="AsBinary">If true, the resultant diff will contain the complete binary file from the child for each file found to be different.  Default is to only do this for non-text files and record a textual diff instead whenever possible.</param>
         /// <returns></returns>
-        public static void CreateDiff(string OldVHD, string NewVHD, string Output, DiskType OutputType = DiskType.VHD, bool Force = false, Tuple<int, int> Partition = null, ComparisonStyle Style = ComparisonStyle.DateTimeOnly)
+        public static void CreateDiff(string OldVHD, string NewVHD, string Output, DiskType OutputType = DiskType.VHD, bool Force = false, Tuple<int, int> Partition = null, ComparisonStyle Style = ComparisonStyle.DateTimeOnly, bool AsBinary = false)
         {
             if (File.Exists(Output) && !Force) throw new ArgumentException("Output file already exists.", "Output");
             if (!File.Exists(OldVHD)) throw new ArgumentException("Input file does not exist.", "OldVHD");
@@ -145,49 +148,34 @@ namespace DiffVHD
                 }
 
                 long OutputCapacity = CapacityBuffer + OutputCapacities.Sum();
-                switch (OutputType)
-                {
-                    case DiskType.VHD:
-                        Out = DiscUtils.Vhd.Disk.InitializeDynamic(OutFS, Ownership.None, OutputCapacity, Math.Max(New.BlockSize, 512 * 1024)); // the Max() is present only because there's currently a bug with blocksize < (8*sectorSize) in DiscUtils
-                        break;
-                    case DiskType.VHDX:
-                        Out = DiscUtils.Vhdx.Disk.InitializeDynamic(OutFS, Ownership.None, OutputCapacity, Math.Max(New.BlockSize, 512 * 1024));
-                        break;
-                    default:
-                        throw new NotSupportedException("The selected disk type is not supported at this time.",
-                                                        new ArgumentException(
-                                                            "Selected DiskType not currently supported.", "OutputType"));
-                }
 
-                using (Out)
+                using (Out = VHDBuilder.CreateDisk(OutputType, OutFS, OutputCapacity, New.BlockSize))
                 {
 
-                    // set up the output location
-                    if (Out is DiscUtils.Vhd.Disk) ((DiscUtils.Vhd.Disk) Out).AutoCommitFooter = false;
-                    var OutParts = BiosPartitionTable.Initialize(Out);
+                    var OutParts = Out.Partitions;
                     
                     if (Partition != null)
                     {
-                        OutParts.Create(GetPartitionType(Old.Partitions[Partition.Item1]), false); // there is no need (ever) for a VHD diff to have bootable partitions
+                        OutParts.Create(VHDBuilder.GetPartitionType(Old.Partitions[Partition.Item1]), false); // there is no need (ever) for a VHD diff to have bootable partitions
                         var OutFileSystem = Out.FormatPartition(0);
-                        DiffPart(DetectFileSystem(Old.Partitions[Partition.Item1]),
-                                 DetectFileSystem(New.Partitions[Partition.Item2]),
+                        DiffPart(VHDBuilder.DetectFileSystem(Old.Partitions[Partition.Item1]),
+                                 VHDBuilder.DetectFileSystem(New.Partitions[Partition.Item2]),
                                  OutFileSystem,  // As we made the partition spen the entire drive, it should be the only partition
-                                 Style);
+                                 Style, new CopyQueue(AsBinary));
                     }
                     else // Partition == null
                     {
                         for (int i = 0; i < Old.Partitions.Count; i++)
                         {
                             var partIndex = OutParts.Create(Math.Max(Old.Partitions[i].SectorCount * Old.Parameters.BiosGeometry.BytesPerSector, 
-                                                                     New.Partitions[i].SectorCount * New.Parameters.BiosGeometry.BytesPerSector), 
-                                                            GetPartitionType(Old.Partitions[i]), false);
+                                                                     New.Partitions[i].SectorCount * New.Parameters.BiosGeometry.BytesPerSector),
+                                                            VHDBuilder.GetPartitionType(Old.Partitions[i]), false);
                             var OutFileSystem = Out.FormatPartition(partIndex);
-                            
-                            DiffPart(DetectFileSystem(Old.Partitions[i]),
-                                     DetectFileSystem(New.Partitions[i]),
+
+                            DiffPart(VHDBuilder.DetectFileSystem(Old.Partitions[i]),
+                                     VHDBuilder.DetectFileSystem(New.Partitions[i]),
                                      OutFileSystem,
-                                     Style);
+                                     Style, new CopyQueue(AsBinary));
                         }
                     }
                     
@@ -196,48 +184,48 @@ namespace DiffVHD
             } // using (Old, New, and OutFS)
         }
 
-        private static WellKnownPartitionType GetPartitionType(PartitionInfo Partition)
-        {
-            switch (Partition.BiosType)
-            {
-                case BiosPartitionTypes.Fat16:
-                case BiosPartitionTypes.Fat32:
-                case BiosPartitionTypes.Fat32Lba:
-                    return WellKnownPartitionType.WindowsFat;
-                case BiosPartitionTypes.Ntfs:
-                    return WellKnownPartitionType.WindowsNtfs;
-                case BiosPartitionTypes.LinuxNative:
-                    return WellKnownPartitionType.Linux;
-                case BiosPartitionTypes.LinuxSwap:
-                    return WellKnownPartitionType.LinuxSwap;
-                case BiosPartitionTypes.LinuxLvm:
-                    return WellKnownPartitionType.LinuxLvm;
-                default:
-                    throw new ArgumentException(
-                        String.Format("Unsupported partition type: '{0}'", BiosPartitionTypes.ToString(Partition.BiosType)), "Partition");
-            }
-        }
-
-        private static DiscFileSystem DetectFileSystem(PartitionInfo Partition)
-        {
-            using (var stream = Partition.Open())
-            {
-                if (NtfsFileSystem.Detect(stream))
-                    return new NtfsFileSystem(Partition.Open());
-                stream.Seek(0, SeekOrigin.Begin);
-                if (FatFileSystem.Detect(stream))
-                    return new FatFileSystem(Partition.Open());
-
-                /* Ext2/3/4 file system - when Ext becomes fully writable
-                
-                stream.Seek(0, SeekOrigin.Begin);
-                if (ExtFileSystem.Detect(stream))
-                    return new ExtFileSystem(Partition.Open());
-                */
-
-                return null;
-            }
-        }
+//        private static WellKnownPartitionType GetPartitionType(PartitionInfo Partition)
+//        {
+//            switch (Partition.BiosType)
+//            {
+//                case BiosPartitionTypes.Fat16:
+//                case BiosPartitionTypes.Fat32:
+//                case BiosPartitionTypes.Fat32Lba:
+//                    return WellKnownPartitionType.WindowsFat;
+//                case BiosPartitionTypes.Ntfs:
+//                    return WellKnownPartitionType.WindowsNtfs;
+//                case BiosPartitionTypes.LinuxNative:
+//                    return WellKnownPartitionType.Linux;
+//                case BiosPartitionTypes.LinuxSwap:
+//                    return WellKnownPartitionType.LinuxSwap;
+//                case BiosPartitionTypes.LinuxLvm:
+//                    return WellKnownPartitionType.LinuxLvm;
+//                default:
+//                    throw new ArgumentException(
+//                        String.Format("Unsupported partition type: '{0}'", BiosPartitionTypes.ToString(Partition.BiosType)), "Partition");
+//            }
+//        }
+//
+//        private static DiscFileSystem DetectFileSystem(PartitionInfo Partition)
+//        {
+//            using (var stream = Partition.Open())
+//            {
+//                if (NtfsFileSystem.Detect(stream))
+//                    return new NtfsFileSystem(Partition.Open());
+//                stream.Seek(0, SeekOrigin.Begin);
+//                if (FatFileSystem.Detect(stream))
+//                    return new FatFileSystem(Partition.Open());
+//
+//                /* Ext2/3/4 file system - when Ext becomes fully writable
+//                
+//                stream.Seek(0, SeekOrigin.Begin);
+//                if (ExtFileSystem.Detect(stream))
+//                    return new ExtFileSystem(Partition.Open());
+//                */
+//
+//                return null;
+//            }
+//        }
 
         private static void DiffPart(DiscFileSystem PartA, DiscFileSystem PartB, DiscFileSystem Output, ComparisonStyle Style = ComparisonStyle.DateTimeOnly, CopyQueue WriteQueue = null)
         {
@@ -539,8 +527,8 @@ namespace DiffVHD
         {
             CopyQueue queue = new CopyQueue();
 
-            var BFS = DetectFileSystem(Base);
-            var DFS = DetectFileSystem(Diff);
+            var BFS = VHDBuilder.DetectFileSystem(Base);
+            var DFS = VHDBuilder.DetectFileSystem(Diff);
 
             if (BFS is NtfsFileSystem)
             {
@@ -608,24 +596,24 @@ namespace DiffVHD
             }
         }
 
-        // Extension method to handle partition formatting
-        private static DiscFileSystem FormatPartition(this VirtualDisk Disk, int PartitionIndex)
-        {
-            var type = GetPartitionType(Disk.Partitions[PartitionIndex]);
-            switch (type)
-            {
-                case WellKnownPartitionType.WindowsFat:
-                    return FatFileSystem.FormatPartition(Disk, PartitionIndex, null);
-                case WellKnownPartitionType.WindowsNtfs:
-                    return NtfsFileSystem.Format(Disk.Partitions[PartitionIndex].Open(), null, Disk.Geometry,
-                                                 Disk.Partitions[PartitionIndex].FirstSector,
-                                                 Disk.Partitions[PartitionIndex].SectorCount);
-                case WellKnownPartitionType.Linux:
-                    // return ExtFileSystem.Format(...);
-                default:
-                    return null;
-            }
-        }
+//        // Extension method to handle partition formatting
+//        private static DiscFileSystem FormatPartition(this VirtualDisk Disk, int PartitionIndex)
+//        {
+//            var type = GetPartitionType(Disk.Partitions[PartitionIndex]);
+//            switch (type)
+//            {
+//                case WellKnownPartitionType.WindowsFat:
+//                    return FatFileSystem.FormatPartition(Disk, PartitionIndex, null);
+//                case WellKnownPartitionType.WindowsNtfs:
+//                    return NtfsFileSystem.Format(Disk.Partitions[PartitionIndex].Open(), null, Disk.Geometry,
+//                                                 Disk.Partitions[PartitionIndex].FirstSector,
+//                                                 Disk.Partitions[PartitionIndex].SectorCount);
+//                case WellKnownPartitionType.Linux:
+//                    // return ExtFileSystem.Format(...);
+//                default:
+//                    return null;
+//            }
+//        }
 
     }
 
@@ -642,10 +630,23 @@ namespace DiffVHD
                 Source = source;
             }
         }
+
+        private bool _copyAsBinary;
         private XDictionary<DiscFileInfo, Lineage> _queue;
-        public CopyQueue()
+        public CopyQueue(bool CopyOnlyAsBinary = false)
         {
+            _copyAsBinary = CopyOnlyAsBinary;
             _queue = new XDictionary<DiscFileInfo, Lineage>();
+        }
+        public void MoveQueueTo(CopyQueue other)
+        {
+            lock (this)
+                while (_queue.Any())
+                {
+                    var item = _queue.First();
+                    other.Add(item.Value.Source, item.Key, item.Value.Base);
+                    _queue.Remove(item.Key);
+                }
         }
         public void Add(DiscFileInfo Source, DiscFileInfo Destination, DiscFileInfo Base = null)
         {
@@ -663,8 +664,15 @@ namespace DiffVHD
                         CreateDirectoryTree(current.Value.Source.Directory, current.Key.Directory);
                     }
                     using (Stream src = current.Value.Source.OpenRead())
-                        if (current.Key.Exists)  // trying to merge/apply data diff
-                            if (Diff.IsBinary(src)) // binary blobs are copied whole
+                    {
+                        if (src.Length <= 0)
+                        {
+                            // Diff/New file is empty, skip it.
+                            _queue.Remove(current.Key);
+                            continue;
+                        }
+                        if (current.Key.Exists) // trying to merge/apply data diff
+                            if (Diff.IsBinary(src) || _copyAsBinary) // binary blobs are copied whole
                                 using (Stream dest = current.Key.Open(FileMode.Truncate, FileAccess.ReadWrite))
                                     src.CopyTo(dest);
                             else
@@ -673,15 +681,24 @@ namespace DiffVHD
                                     var srcBytes = src.toArray();
                                     Patch P = new Patch();
 
-                                    P.ParseHunks(srcBytes);
+                                    if (P.ParseHunks(srcBytes) == 0)
+                                    {
+                                        // No diff hunks in the file.
+                                        // Diff file not a diff, and not empty.  Handle it as a binary file overwrite.
+                                        dest.SetLength(0);
+                                        src.CopyTo(dest);
+                                        _queue.Remove(current.Key);
+                                        continue;
+                                    }
 
 
-                                    var newBytes = P.SimpleApply(dest.toArray());  // Replace this call with a more sophisticated (read "intellegent") diff application method.
+                                    var newBytes = P.SimpleApply(dest.toArray());
+                                        // Replace this call with a more sophisticated (read "intellegent") diff application method.
 
                                     dest.Position = 0;
                                     dest.Write(newBytes, 0, newBytes.Length);
                                     dest.SetLength(newBytes.Length);
-                                    
+
                                     /*
                                     MergeResult mr = current.Value.Base == null
                                                          ? MergeAlgorithm.merge(new RawText(dest.toArray()),
@@ -700,7 +717,8 @@ namespace DiffVHD
 
                         else
                             using (var dest = current.Key.Create())
-                                if (current.Value.Base == null || !current.Value.Base.Exists || Diff.IsBinary(src))
+                                if (current.Value.Base == null || !current.Value.Base.Exists || Diff.IsBinary(src) ||
+                                    _copyAsBinary)
                                     src.CopyTo(dest);
                                 else
                                 {
@@ -714,7 +732,8 @@ namespace DiffVHD
                                     if (diff.HasDifferences)
                                     {
                                         var df = new DiffFormatter();
-                                        df.FormatEdits(dest, new RawText(baseBytes), new RawText(srcBytes), diff.GetEdits());
+                                        df.FormatEdits(dest, new RawText(baseBytes), new RawText(srcBytes),
+                                                       diff.GetEdits());
                                         /*
                                         Stream diffStream = new MemoryStream();
                                         df.FormatEdits(diffStream, new RawText(baseBytes), new RawText(srcBytes), diff.GetEdits());
@@ -732,7 +751,7 @@ namespace DiffVHD
                                         continue;
                                     }
                                 }
-
+                    }
 
                     // set the attributes and file timestamps (and ACLs if it's ntfs...)
                     current.Key.Attributes = current.Value.Source.Attributes;
@@ -791,6 +810,112 @@ namespace DiffVHD
             lock (this)
                 return !_queue.Any();
         }
+
+    }
+
+    public static class VHDBuilder
+    {
+        internal static VirtualDisk CreateDisk(DiskType FileType, Stream File, long Size, int BlockSize = 0)
+        {
+            VirtualDisk Out;
+
+            BlockSize = (BlockSize < 512*1024) ? 512*1024 : (BlockSize%512 != 0) ? (BlockSize/512)*512 : BlockSize;
+
+            switch (FileType)
+            {
+                case DiskType.VHD:
+                    Out = DiscUtils.Vhd.Disk.InitializeDynamic(File, Ownership.None, Size, BlockSize);
+                    ((DiscUtils.Vhd.Disk)Out).AutoCommitFooter = false;
+                    break;
+                case DiskType.VHDX:
+                    Out = DiscUtils.Vhdx.Disk.InitializeDynamic(File, Ownership.None, Size, BlockSize);
+                    break;
+                default:
+                    throw new NotSupportedException("The selected disk type is not supported at this time.",
+                                                    new ArgumentException(
+                                                        "Selected DiskType not currently supported.", "OutputType"));
+            }
+
+            Out.Signature = new Random().Next();
+            BiosPartitionTable.Initialize(Out);
+
+            return Out;
+        }
+
+        internal static DiscFileSystem CreateSimpleDisk(Stream File, long Size, WellKnownPartitionType VolumeType = WellKnownPartitionType.WindowsNtfs)
+        {
+            int BlockSize = 512*1024;
+            var Out = DiscUtils.Vhd.Disk.InitializeDynamic(File, Ownership.None, Size, BlockSize);
+            Out.AutoCommitFooter = false;
+            Out.Signature = new Random().Next();
+            BiosPartitionTable.Initialize(Out, VolumeType);
+            DiscFileSystem sys = Out.FormatPartition(0);
+            return sys;
+        }
+
+
+        // Extension method to handle partition formatting
+        internal static DiscFileSystem FormatPartition(this VirtualDisk Disk, int PartitionIndex)
+        {
+            var type = GetPartitionType(Disk.Partitions[PartitionIndex]);
+            switch (type)
+            {
+                case WellKnownPartitionType.WindowsFat:
+                    return FatFileSystem.FormatPartition(Disk, PartitionIndex, null);
+                case WellKnownPartitionType.WindowsNtfs:
+                    return NtfsFileSystem.Format(new VolumeManager(Disk).GetLogicalVolumes()[0], String.Empty);
+                    //return NtfsFileSystem.Format(Disk.Partitions[PartitionIndex].Open(), null, Disk.Geometry, Disk.Partitions[PartitionIndex].FirstSector, Disk.Partitions[PartitionIndex].SectorCount);
+                case WellKnownPartitionType.Linux:
+                // return ExtFileSystem.Format(...);
+                default:
+                    return null;
+            }
+        }
+
+        internal static WellKnownPartitionType GetPartitionType(PartitionInfo Partition)
+        {
+            switch (Partition.BiosType)
+            {
+                case BiosPartitionTypes.Fat16:
+                case BiosPartitionTypes.Fat32:
+                case BiosPartitionTypes.Fat32Lba:
+                    return WellKnownPartitionType.WindowsFat;
+                case BiosPartitionTypes.Ntfs:
+                    return WellKnownPartitionType.WindowsNtfs;
+                case BiosPartitionTypes.LinuxNative:
+                    return WellKnownPartitionType.Linux;
+                case BiosPartitionTypes.LinuxSwap:
+                    return WellKnownPartitionType.LinuxSwap;
+                case BiosPartitionTypes.LinuxLvm:
+                    return WellKnownPartitionType.LinuxLvm;
+                default:
+                    throw new ArgumentException(
+                        String.Format("Unsupported partition type: '{0}'", BiosPartitionTypes.ToString(Partition.BiosType)), "Partition");
+            }
+        }
+
+        internal static DiscFileSystem DetectFileSystem(PartitionInfo Partition)
+        {
+            using (var stream = Partition.Open())
+            {
+                if (NtfsFileSystem.Detect(stream))
+                    return new NtfsFileSystem(Partition.Open());
+                stream.Seek(0, SeekOrigin.Begin);
+                if (FatFileSystem.Detect(stream))
+                    return new FatFileSystem(Partition.Open());
+
+                /* Ext2/3/4 file system - when Ext becomes fully writable
+                
+                stream.Seek(0, SeekOrigin.Begin);
+                if (ExtFileSystem.Detect(stream))
+                    return new ExtFileSystem(Partition.Open());
+                */
+
+                return null;
+            }
+        }
+
+
 
     }
 
